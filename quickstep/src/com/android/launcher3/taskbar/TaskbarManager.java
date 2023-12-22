@@ -41,6 +41,7 @@ import android.os.SystemProperties;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Display;
+import android.os.UserHandle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -145,6 +146,7 @@ public class TaskbarManager {
         Display display =
                 service.getSystemService(DisplayManager.class).getDisplay(DEFAULT_DISPLAY);
         mContext = service.createWindowContext(display, TYPE_NAVIGATION_BAR_PANEL, null);
+        hideNavHint(mContext);
         mNavButtonController = new TaskbarNavButtonController(service,
                 SystemUiProxy.INSTANCE.get(mContext), new Handler());
         mUserSetupCompleteListener = isUserSetupComplete -> recreateTaskbar();
@@ -203,6 +205,8 @@ public class TaskbarManager {
                         + "configDiffForRecreate="
                         + Configuration.configurationDiffToString(configDiffForRecreate));
                 if ((configDiffForRecreate & configsRequiringRecreate) != 0) {
+                    hideNavHint(mContext);
+
                     recreateTaskbar();
                 } else {
                     // Config change might be handled without re-creating the taskbar
@@ -257,6 +261,19 @@ public class TaskbarManager {
 
         debugWhyTaskbarNotDestroyed("TaskbarManager created");
         recreateTaskbar();
+    }
+
+    private void hideNavHint(Context context) {
+        // Enabling NAVIGATION_BAR_HINT causes the Launcher to enter an infinite start loop when Android startup.
+        if (
+            LineageSettings.System.getIntForUser(context.getContentResolver(),
+                LineageSettings.System.NAVIGATION_BAR_HINT, 1,
+                UserHandle.USER_CURRENT) == 1
+        ) {
+            LineageSettings.System.putIntForUser(context.getContentResolver(),
+                LineageSettings.System.NAVIGATION_BAR_HINT, 0,
+                UserHandle.USER_CURRENT);
+        }
     }
 
     private void destroyExistingTaskbar() {
